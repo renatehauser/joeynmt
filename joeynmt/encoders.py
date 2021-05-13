@@ -1,5 +1,7 @@
 # coding: utf-8
-
+import random
+import logging
+import os
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -8,6 +10,9 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from joeynmt.helpers import freeze_params
 from joeynmt.transformer_layers import \
     TransformerEncoderLayer, PositionalEncoding
+
+#logging.basicConfig(level=os.environ.get("LOGLEVEL", "DEBUG"))
+logger = logging.getLogger(__name__)
 
 
 #pylint: disable=abstract-method
@@ -162,6 +167,8 @@ class TransformerEncoder(Encoder):
                  dropout: float = 0.1,
                  emb_dropout: float = 0.1,
                  freeze: bool = False,
+                 layerdrop: float = 0.,
+                 active_layers=(0, 1, 2, 3),
                  **kwargs):
         """
         Initializes the Transformer.
@@ -178,6 +185,8 @@ class TransformerEncoder(Encoder):
         super().__init__()
 
         # build all (num_layers) layers
+        if active_layers is None:
+            active_layers = [0, 1, 2, 3]
         self.layers = nn.ModuleList([
             TransformerEncoderLayer(size=hidden_size, ff_size=ff_size,
                                     num_heads=num_heads, dropout=dropout)
@@ -191,6 +200,9 @@ class TransformerEncoder(Encoder):
 
         if freeze:
             freeze_params(self)
+        # My Addition:
+        self.layerdrop = layerdrop
+        self.active_layers = active_layers
 
     #pylint: disable=arguments-differ
     def forward(self,
@@ -218,8 +230,26 @@ class TransformerEncoder(Encoder):
         x = self.pe(embed_src)  # add position encoding to word embeddings
         x = self.emb_dropout(x)
 
-        for layer in self.layers:
-            x = layer(x, mask)
+        logger.debug(f"Running in training mode: {self.training}")
+
+        for i, layer in enumerate(self.layers):
+            # My Addition:
+            # training mode with layer drop
+            if self.training:
+                if random.random() < self.layerdrop:
+                    logger.debug(f"Layerdrop: Layer {i} is dropped")
+                    continue
+                else:
+                    logger.debug(f"Layerdrop: Layer {i} is not dropped")
+                    x = layer(x, mask)
+            # inference mode with pruning
+            else:
+                if i in self.active_layers:
+                    logger.debug(f"Pruning: Layer {i} is not dropped")
+                    x = layer(x, mask)
+                else:
+                    logger.debug(f"Pruning: Layer {i} is dropped")
+                    continue
         return self.layer_norm(x), None
 
     def __repr__(self):
