@@ -775,7 +775,7 @@ def train(cfg_file: str, skip_test: bool = False) -> None:
         data_cfg=cfg["data"])
 
     # build an encoder-decoder model
-    # My Changes:
+    # My Changes: pass complete config (not only part "model") to enable active layers
     model = build_model(cfg, src_vocab=src_vocab, trg_vocab=trg_vocab)
 
     # for training management, e.g. early stopping and model selection

@@ -200,7 +200,7 @@ class TransformerEncoder(Encoder):
 
         if freeze:
             freeze_params(self)
-        # My Addition:
+        # My Addition: initialize values for layerdrop and active layers
         self.layerdrop = layerdrop
         self.active_layers = active_layers
 

@@ -240,7 +240,7 @@ def build_model(cfg: dict = None,
     # build encoder
     enc_dropout = cfg_model["encoder"].get("dropout", 0.)
     enc_emb_dropout = cfg_model["encoder"]["embeddings"].get("dropout", enc_dropout)
-    layerdrop = cfg_model["encoder"].get("layerdrop", 0.)
+    # My addition: adding config for active layers
     active_layers = cfg["testing"].get("active_layers", [0, 1, 2, 3])
     if cfg_model["encoder"].get("type", "recurrent") == "transformer":
         assert cfg_model["encoder"]["embeddings"]["embedding_dim"] == \
